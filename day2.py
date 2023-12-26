@@ -10,6 +10,7 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
 """
 
 EXPECTED1 = 8
+EXPECTED2 = 2286
 
 N_CUBES = {
     "red": 12,
@@ -42,6 +43,10 @@ class Game:
             and self.max_green <= N_CUBES["green"]
             and self.max_blue <= N_CUBES["blue"]
         )
+    
+    @property
+    def power(self):
+        return self.max_red * self.max_green * self.max_blue
     
     def __repr__(self) -> str:
         return f"Game({self.idx=},{self.max_red=},{self.max_green=},{self.max_blue=})"
@@ -90,19 +95,31 @@ def compute(data: str) -> int:
 
     valid_games = [game for game in games if game.is_valid_game]
 
-    # for game in valid_games:
+    #  for game in valid_games:
     #     print(game)
     return sum([game.idx for game in valid_games])
 
+def compute2(data: str) -> int:
+    games = [parse_game(line) for line in data.splitlines()]
+
+    return sum([game.power for game in games])
+
 def test_case1():
     assert compute(INPUT1) == EXPECTED1
+
+def test_case2():
+    # same input as test case 1
+    assert compute2(INPUT1) == EXPECTED2
 
 def main() -> int:
     with open("day2_input.txt", "r") as f:
         data = f.read()
 
     total = compute(data)
-    print(total)
+    print(f"{total=}")
+
+    power = compute2(data)
+    print(f"{power=}")
 
 if __name__ == "__main__":
     main()
