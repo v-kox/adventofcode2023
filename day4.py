@@ -1,6 +1,8 @@
 """ Advent of Code 2023 day 4"""
 import re
 
+from dataclasses import dataclass
+import queue
 from utils import get_integers_from_line
 
 INPUT1 = """\
@@ -27,12 +29,20 @@ Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
 Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
 """
 EXPECTED4 = 13
+EXPECTED6 = 30 # Ouput for part 2
 
 INPUT5 = """\
 Card 1: 9 | 1
 """
 EXPECTED5 = 0
 
+INPUT7 = """\
+Card 1: 1 2 3 | 1 2 3
+Card 2: 1 2 3 | 9 8 7
+Card 3: 1 2 3 | 9 8 7
+Card 4: 1 2 3 | 9 8 7
+"""
+EXPECTED7 = 7
 
 def test_case1():
     """ Test case multiple winning numbers """
@@ -58,35 +68,94 @@ def test_case5():
     """ Test case that card number is not used as winning number """
     assert compute(INPUT5) == EXPECTED5
 
+def test_case6():
+    """ Test case for test input part 2 """
+    assert compute2(INPUT4) == EXPECTED6
 
-def calculate_points(win_num: list[int], sel_num: list[int]) -> int:
-    """
-    Calculate the score based on how many of the
-    selected numbers are winning numbers
-    """
-    scoring_nums = [x for x in sel_num if x in win_num]
+def test_case7():
+    """ Test case part 2. First card all winners, rest no winners """
+    assert compute2(INPUT7) == EXPECTED7
 
-    if scoring_nums:
-        score = 2**(len(scoring_nums) - 1)
-    else:
-        score = 0
+@dataclass
+class ScratchCard:
+    """ Representation of a ScratchCard """
+    id: int
+    win_nums: list[int]
+    sel_nums: list[int]
 
-    return score
+    @property
+    def scoring_numbers(self) -> int:
+        """
+        Returns the list of selected numbers that are also
+        winning numbers
+        """
+        return [x for x in self.sel_nums if x in self.win_nums]
+
+    @property
+    def score(self) -> int:
+        """ Returns the score of the ScratchCard"""
+        if not self.scoring_numbers:
+            score = 0
+        else:
+            score = 2 ** (self.n_scoring - 1)
+        return score
+
+    @property
+    def n_scoring(self) -> int:
+        """ returns the number of scoring numbers """
+        return len(self.scoring_numbers)
+
+def get_scratch_card_from_line(line: str) -> ScratchCard:
+    """ Parse a line of input and return a ScratchCard object """
+
+    # Split line on pipe and identify winning and selected numbers
+    split_re = r"[|:]"
+    split_line = re.split(split_re, line)
+
+    card_idx = get_integers_from_line(split_line[0])
+    win_num = get_integers_from_line(split_line[1])
+    sel_num = get_integers_from_line(split_line[2])
+
+    return ScratchCard(card_idx[0], win_num, sel_num)
 
 
 def compute(data: str) -> int:
     """ Compute the result of the puzzle """
     total_score = 0
     for line in data.splitlines():
-        # Split line on pipe and identify winning and selected numbers
-        split_re = r"[|:]"
-        split_line = re.split(split_re, line)
-        win_num = get_integers_from_line(split_line[1])
-        sel_num = get_integers_from_line(split_line[2])
+        card = get_scratch_card_from_line(line)
 
-        total_score += calculate_points(win_num, sel_num)
+        total_score += card.score
 
     return total_score
+
+def compute2(data: str) -> int:
+    """ Compute the result of part 2 """
+    n_cards = 0
+    card_dict: dict[int, ScratchCard] = {}
+    card_queue = queue.SimpleQueue()
+
+    for line in data.splitlines():
+        # Parse card from input
+        card = get_scratch_card_from_line(line)
+
+        # Create dict off scratch cards
+        card_dict[card.id] = card
+
+        # Add cards to queue
+        card_queue.put(card)
+
+    # breakpoint()
+    while not card_queue.empty():
+        n_cards += 1
+        card = card_queue.get()
+
+        # breakpoint()
+        for idx in range(card.id + 1, card.id + card.n_scoring + 1):
+            if idx in card_dict.keys():
+                card_queue.put(card_dict[idx])
+
+    return n_cards
 
 
 def main() -> None:
@@ -95,6 +164,9 @@ def main() -> None:
 
     total_score = compute(data)
     print(f"{total_score=}")
+
+    n_cards = compute2(data)
+    print(f"{n_cards=}")
 
 
 if __name__ == '__main__':

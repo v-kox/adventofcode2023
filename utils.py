@@ -5,4 +5,4 @@ import re
 def get_integers_from_line(line: str) -> list[int]:
     """ Returns a list of integers present in the provided string """
     int_re = r"\d+"
-    return re.findall(int_re, line)
+    return [int(x) for x in re.findall(int_re, line)]
