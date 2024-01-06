@@ -1,7 +1,7 @@
 """ Advent of Code 2023 day 4"""
 import re
-
 from dataclasses import dataclass
+
 from utils import get_integers_from_line
 
 INPUT1 = """\
