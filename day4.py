@@ -2,7 +2,6 @@
 import re
 
 from dataclasses import dataclass
-import queue
 from utils import get_integers_from_line
 
 INPUT1 = """\
@@ -29,7 +28,7 @@ Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
 Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
 """
 EXPECTED4 = 13
-EXPECTED6 = 30 # Ouput for part 2
+EXPECTED6 = 30  # Ouput for part 2
 
 INPUT5 = """\
 Card 1: 9 | 1
@@ -43,6 +42,15 @@ Card 3: 1 2 3 | 9 8 7
 Card 4: 1 2 3 | 9 8 7
 """
 EXPECTED7 = 7
+
+INPUT8 = """\
+Card 1: 1 2 3 | 1 2 3
+Card 2: 1 2 3 | 1 2 3
+Card 3: 1 2 3 | 1 2 3
+Card 4: 1 2 3 | 1 2 3
+"""
+EXPECTED8 = 15
+
 
 def test_case1():
     """ Test case multiple winning numbers """
@@ -68,13 +76,23 @@ def test_case5():
     """ Test case that card number is not used as winning number """
     assert compute(INPUT5) == EXPECTED5
 
+
 def test_case6():
     """ Test case for test input part 2 """
     assert compute2(INPUT4) == EXPECTED6
 
+
 def test_case7():
     """ Test case part 2. First card all winners, rest no winners """
     assert compute2(INPUT7) == EXPECTED7
+
+
+def test_case8():
+    """
+    Test case part 2. Worst case scenario all winners. (for performance)
+    """
+    assert compute2(INPUT8) == EXPECTED8
+
 
 @dataclass
 class ScratchCard:
@@ -84,7 +102,7 @@ class ScratchCard:
     sel_nums: list[int]
 
     @property
-    def scoring_numbers(self) -> int:
+    def scoring_numbers(self) -> list[int]:
         """
         Returns the list of selected numbers that are also
         winning numbers
@@ -104,6 +122,7 @@ class ScratchCard:
     def n_scoring(self) -> int:
         """ returns the number of scoring numbers """
         return len(self.scoring_numbers)
+
 
 def get_scratch_card_from_line(line: str) -> ScratchCard:
     """ Parse a line of input and return a ScratchCard object """
@@ -129,33 +148,30 @@ def compute(data: str) -> int:
 
     return total_score
 
+
 def compute2(data: str) -> int:
     """ Compute the result of part 2 """
-    n_cards = 0
-    card_dict: dict[int, ScratchCard] = {}
-    card_queue = queue.SimpleQueue()
+    cards = [
+        get_scratch_card_from_line(line)
+        for line in data.splitlines()
+        ]
 
-    for line in data.splitlines():
-        # Parse card from input
-        card = get_scratch_card_from_line(line)
+    # initially start with 1 occurence of each card
+    n_cards = [1 for _ in range(len(cards))]
 
-        # Create dict off scratch cards
-        card_dict[card.id] = card
+    for idx, card in enumerate(cards):
+        if card.n_scoring:
+            # Get the start and end index of the slice of the n_cards
+            # array we need to update
+            start_idx = idx + 1
+            end_idx = min(idx + card.n_scoring + 1, len(cards))
+            for idx2 in range(start_idx, end_idx):
+                # Based on the number of occurences of the current card,
+                # We can add how many times it will add subsequent cards
+                n_cards[idx2] += n_cards[idx]
 
-        # Add cards to queue
-        card_queue.put(card)
-
-    # breakpoint()
-    while not card_queue.empty():
-        n_cards += 1
-        card = card_queue.get()
-
-        # breakpoint()
-        for idx in range(card.id + 1, card.id + card.n_scoring + 1):
-            if idx in card_dict.keys():
-                card_queue.put(card_dict[idx])
-
-    return n_cards
+    # return the sum of occurences of each scratch card
+    return sum(n_cards)
 
 
 def main() -> None:
