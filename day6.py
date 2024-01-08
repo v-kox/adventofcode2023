@@ -1,5 +1,6 @@
 """ Advent of Code 2023 day 6 """
 
+import math
 from dataclasses import dataclass
 
 from utils import get_integers_from_line, get_numbers_from_line
@@ -25,33 +26,42 @@ def test_case2():
 
 @dataclass
 class Race:
-    """ Representation of a boat race """
+    """
+    Representation of a boat race
+
+    The distance traveled based on how long you accelerate is a
+    quadratic function that can be presented as: -x * (x - t)
+    where t is the time in the race.
+    """
     time: int
     record_distance: int
 
-    acceleration: int = 1
-    start_speed: int = 0
+    def calculate_distance(self, t: int) -> int:
+        """
+        Returns the distance traveled for a givent acceleration
+        period t
+        """
+        return -t * (t + self.time)
 
-    def get_distance_all_strategies(self) -> list[int]:
+    def get_range_to_beat_record(self) -> range:
         """
-        Return the distance traveled for each strategy
-        assuming linear acceleration
-        """
-        return [
-            (self.time - x) * (self.start_speed + x * self.acceleration)
-            for x in range(self.time + 1)
-            ]
+        This function returns the range in which the distance
+        traveled in the race beats the record distance.
 
-    def get_strategies_beat_record(self) -> list[int]:
+        Since the distance traveled is a quadratic function, the start and end
+        of the range is where that function intersects with the function y = d
+        where d is the record distance.
+
+        Intersection points can be calculated using the following formula:
+
+        x = (t ± √(t**2 - 4 * d)) / 2
         """
-        Return distances traveled for each strategy that beats the
-        record distance.
-        """
-        return [
-            x
-            for x in self.get_distance_all_strategies()
-            if x > self.record_distance
-            ]
+        t = self.time
+        d = self.record_distance + 1
+        x_start = math.ceil((t - math.sqrt(t**2 - 4 * d)) / 2)
+        x_end = math.floor((t + math.sqrt(t**2 - 4 * d)) / 2)
+
+        return range(x_start, x_end + 1)
 
 
 def compute(data: str) -> int:
@@ -65,11 +75,11 @@ def compute(data: str) -> int:
             raise ValueError(f"Don't know how to parse '{line}'")
 
     races = [Race(time=t, record_distance=r) for t, r in zip(times, distances)]
-    winning_races = [r.get_strategies_beat_record() for r in races]
+    winning_races = [r.get_range_to_beat_record() for r in races]
 
     output = 1
     for win_rac in winning_races:
-        output *= len(win_rac)
+        output *= (win_rac.stop - win_rac.start)
 
     return output
 
@@ -87,9 +97,10 @@ def compute2(data: str) -> int:
             raise ValueError(f"Don't know how to parse '{line}'")
 
     race = Race(time=time, record_distance=distance)
-    winning_races = race.get_strategies_beat_record()
 
-    return len(winning_races)
+    win_range = race.get_range_to_beat_record()
+
+    return win_range.stop - win_range.start
 
 
 def main() -> None:
