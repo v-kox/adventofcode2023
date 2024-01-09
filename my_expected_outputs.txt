@@ -13,7 +13,7 @@ day	 5	part	1   173706076
 day	 5	part	2   11611182
 day	 6	part	1   2374848
 day	 6	part	2   39132886
-day	 7	part	1
+day	 7	part	1   250120186
 day	 7	part	2
 day	 8	part	1
 day	 8	part	2
