@@ -17,7 +17,7 @@ day	 7	part	1   250120186
 day	 7	part	2   250665248
 day	 8	part	1   19667
 day	 8	part	2   19185263738117
-day	 9	part	1
+day	 9	part	1   1995001648
 day	 9	part	2
 day	10	part	1
 day	10	part	2
