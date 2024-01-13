@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Generator
 
 INPUT1 = """\
 .....
@@ -38,6 +39,7 @@ class Offsets(Enum):
 
     (delta_row, delta_col)
     """
+
     NORTH = (-1, 0)
     EAST = (0, 1)
     SOUTH = (1, 0)
@@ -46,19 +48,20 @@ class Offsets(Enum):
 
 @dataclass
 class Node:
-    """ Representation of a node in the grid """
+    """Representation of a node in the grid"""
+
     symbol: str
     row: int
     col: int
 
     @property
     def is_start(self) -> bool:
-        """ Check if this node is the start node"""
+        """Check if this node is the start node"""
         return self.symbol == "S"
 
     @property
     def neighbours(self) -> list[tuple[int, int]]:
-        """ Return a list of coordinates of neighbouring nodes """
+        """Return a list of coordinates of neighbouring nodes"""
         match self.symbol:
             case "S":
                 offsets = [
@@ -86,7 +89,7 @@ class Node:
         return [(self.row + r, self.col + c) for (r, c) in offsets]
 
     def is_valid_neighbour(self, node: Node) -> bool:
-        """ Check if this node is a valid neighbour of the other node """
+        """Check if this node is a valid neighbour of the other node"""
         return (node.row, node.col) in self.neighbours
 
 
@@ -95,7 +98,7 @@ class Grid:
     grid: list[list[Node]]
 
     def get_start_of_maze(self) -> Node:
-        """ Return the start node of the maze """
+        """Return the start node of the maze"""
         for row in self.grid:
             for node in row:
                 if node.is_start:
@@ -103,39 +106,48 @@ class Grid:
 
         raise ValueError("No start node found in grid")
 
-    def get_node_neighbours(self, node: Node) -> list[Node]:
-        """ Returns a list of nodes neigbouring the given node """
-        neighbours = []
-        for n in node.neighbours:
+    def get_node_neighbours(self, node: Node) -> Generator[Node, None, None]:
+        """Returns a list of nodes neigbouring the given node"""
+        for rown, coln in node.neighbours:
             try:
-                new_node = self.grid[n[0]][n[1]]
+                new_node = self.grid[rown][coln]
 
                 if new_node.is_valid_neighbour(node):
-                    neighbours.append(new_node)
+                    yield new_node
             except IndexError:
                 continue
 
-        return neighbours
-
 
 def get_maze(grid: Grid) -> list[Node]:
-    """ Construct the maze for a given grid. """
+    """Construct the maze for a given grid."""
     maze = []
 
     current_node = grid.get_start_of_maze()
+    # previous node is needed for pathing.
+    # initially we set it to the start node
+    prev_node = current_node
+
     end_of_maze = False
 
     while not end_of_maze:
-        # breakpoint()
         maze.append(current_node)
 
-        neigbours = grid.get_node_neighbours(current_node)
-        neigbours = [n for n in neigbours if n not in maze]
+        neighbours = [
+            n
+            for n in grid.get_node_neighbours(current_node)
+            # Find neighbouring nodes that are not the previously visited node
+            # And that is not the start node.s
+            if n != prev_node and not n.is_start
+        ]
 
-        if not neigbours:
+        if not neighbours:
+            # If we can't find any new valid neighbours, it means we are at the
+            # end of the maze
             end_of_maze = True
         else:
-            current_node = neigbours[0]
+            # Else continue with the next node
+            prev_node = current_node
+            current_node = neighbours[0]
 
     return maze
 
