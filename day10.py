@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass
-from enum import Enum
 from typing import Generator
 
 import pytest
+
+from utils import Offsets
 
 INPUT1 = """\
 .....
@@ -91,19 +92,6 @@ def test_case_part1(input, expected):
 def test_case_part2(input, expected):
     """Test case example 2 part 1"""
     assert compute2(input) == expected
-
-
-class Offsets(Enum):
-    """
-    Offsets in coords to go a direction in the grid.
-
-    (delta_row, delta_col)
-    """
-
-    NORTH = (-1, 0)
-    EAST = (0, 1)
-    SOUTH = (1, 0)
-    WEST = (0, -1)
 
 
 @dataclass

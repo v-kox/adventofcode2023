@@ -21,7 +21,7 @@ day	 9	part	1   1995001648
 day	 9	part	2   988
 day	10	part	1   6697
 day	10	part	2   423
-day	11	part	1
+day	11	part	1   9686930
 day	11	part	2
 day	12	part	1
 day	12	part	2

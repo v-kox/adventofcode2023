@@ -3,6 +3,7 @@ collection of utility functions that seem to be helpful in multiple tasks
 """
 
 import re
+from enum import Enum
 
 
 def get_integers_from_line(line: str) -> list[int]:
@@ -17,3 +18,16 @@ def get_numbers_from_line(line: str) -> list[str]:
     """
     int_re = r"[-\d]+"
     return [x for x in re.findall(int_re, line)]
+
+
+class Offsets(Enum):
+    """
+    Offsets in coords to go a direction in the grid.
+
+    (delta_row, delta_col)
+    """
+
+    NORTH = (-1, 0)
+    EAST = (0, 1)
+    SOUTH = (1, 0)
+    WEST = (0, -1)
