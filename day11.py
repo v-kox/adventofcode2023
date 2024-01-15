@@ -3,8 +3,10 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from itertools import count
-from typing import Generator, Iterable
+from typing import Generator
+
 import pytest
+
 from utils import Offsets
 
 INPUT1 = """\
@@ -28,15 +30,11 @@ def test_case1():
     assert compute(INPUT1) == EXPECTED1
 
 
-@pytest.mark.parametrize(
-        "multiplier, expected",
-        [
-            (10, 1030),
-            (100, 8410)
-        ]
-)
+@pytest.mark.parametrize("multiplier, expected", [(10, 1030), (100, 8410)])
 def test_case2(multiplier, expected):
-    assert compute2(INPUT1, multiplier) == expected
+    assert compute(INPUT1, multiplier) == expected
+
+
 @dataclass
 class Grid:
     grid: list[list[Node]]
@@ -60,8 +58,9 @@ class Grid:
             yield self.grid[new_row][new_col]
 
     def get_cost_grid(self, mult: int) -> list[list[int]]:
-        """ Construct a grid with the cost to cross each cell. """
-        return [[mult-1 if c.symbol == "X" else 1 for c in row] for row in self.grid]
+        """Construct a grid with the cost to cross each cell."""
+        return [[mult if c.symbol == "X" else 1 for c in row] for row in self.grid]
+
 
 @dataclass(order=True)
 class Node:
@@ -79,7 +78,7 @@ class Node:
     @property
     def is_empty(self) -> bool:
         """Return True of Node is `.`."""
-        return self.symbol == "."
+        return self.symbol in ".X"
 
     def distance(self, other: Node) -> float:
         """Get the euclidian distance between 2 Nodes."""
@@ -87,7 +86,7 @@ class Node:
 
 
 def get_combinations(
-    galaxies: Iterable[Node],
+    galaxies: list[Node],
 ) -> Generator[tuple[Node, Node], None, None]:
     """Creates a generator with all combinations of galaxies of length 2."""
     for i in range(len(galaxies) - 1):
@@ -97,24 +96,23 @@ def get_combinations(
 
 def expand_empty(data: list[list[str]]) -> list[list[str]]:
     """
-    Expands empty columns/rows in the data.
-    If entire row/col is empty (i.e. `.`), add another empty row/col
-    right next to it.
+    When entire row/column is empty, replace it with `X`.
+    This still counts as empty, but when calculating the cost matrix,
+    X-values get multiplied by the giver multiplier.
     """
     empty_row = ["X"] * len(data[0])
-    empty_rows = [idx for idx, row in enumerate(data) if all(c == "." for c in row)]
-    empty_rows.reverse()
+    empty_rows = [idx for idx, row in enumerate(data) if all(c in ".X" for c in row)]
 
     empty_cols = [
-        idx for idx in range(len(data[0])) if all(row[idx] == "." for row in data)
+        idx for idx in range(len(data[0])) if all(row[idx] in ".X" for row in data)
     ]
-    empty_cols.reverse()
 
     for idx in empty_rows:
-        data[idx:idx] = [empty_row.copy()]
+        data[idx] = empty_row.copy()
     for ridx in range(len(data)):
         for cidx in empty_cols:
-            data[ridx][cidx:cidx] = ["X"]
+            data[ridx][cidx] = "X"
+
     return data
 
 
@@ -135,7 +133,10 @@ def parse_grid(data: str, expand: bool = True) -> Grid:
     ]
     return Grid(nodes)
 
-def get_gridpoints_between_nodes(n1: Node, n2: Node) -> list[tuple[int, int]]:
+
+def get_gridpoints_between_nodes(
+    n1: Node, n2: Node
+) -> Generator[tuple[int, int], None, None]:
     """
     Create a list of coordinates to travel from 1 node to another.
     A simple L-shaped movement is assumed.
@@ -145,33 +146,15 @@ def get_gridpoints_between_nodes(n1: Node, n2: Node) -> list[tuple[int, int]]:
     min_col = min(n1.col, n2.col)
     max_col = max(n1.col, n2.col)
 
-    coords = []
+    for colidx in range(min_col, max_col + 1):
+        yield (min_row, colidx)
 
-    for colidx in range(min_col, max_col+1):
-        coords.append((min_row, colidx))
-    
-    for rowidx in range(min_row+1, max_row+1):
-        coords.append((rowidx, min_col))
-
-    return coords
+    for rowidx in range(min_row + 1, max_row + 1):
+        yield (rowidx, min_col)
 
 
-
-def compute(data: str) -> int:
-    """Compute the result for part 1"""
-    grid = parse_grid(data)
-    galaxies = grid.get_galaxy_nodes()
-
-    total_length = 0
-    for start, stop in get_combinations(galaxies):
-        # length of paths is just the sum of delta_row + delta_column
-        n_steps = abs(stop.row - start.row) + abs(stop.col - start.col)
-        total_length += n_steps
-
-    return total_length
-
-def compute2(data: str, multiplier: int) -> int:
-    """ Compute the result for part 2"""
+def compute(data: str, multiplier: int = 2) -> int:
+    """Compute the result for part 2"""
     grid = parse_grid(data)
     galaxies = grid.get_galaxy_nodes()
 
@@ -190,13 +173,14 @@ def compute2(data: str, multiplier: int) -> int:
 
     return total_length
 
+
 def main() -> None:
     """Runnning puzzle input"""
     with open("day11_input.txt", "r") as f:
         data = f.read()
 
     result = compute(data)
-    result2 = compute2(data, 1000000)
+    result2 = compute(data, 1000000)
     print(f"{result=}")
     print(f"{result2=}")
 
