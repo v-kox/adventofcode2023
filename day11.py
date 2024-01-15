@@ -3,8 +3,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from itertools import count
-from typing import Generator
-
+from typing import Generator, Iterable
+import pytest
 from utils import Offsets
 
 INPUT1 = """\
@@ -28,6 +28,15 @@ def test_case1():
     assert compute(INPUT1) == EXPECTED1
 
 
+@pytest.mark.parametrize(
+        "multiplier, expected",
+        [
+            (10, 1030),
+            (100, 8410)
+        ]
+)
+def test_case2(multiplier, expected):
+    assert compute2(INPUT1, multiplier) == expected
 @dataclass
 class Grid:
     grid: list[list[Node]]
@@ -50,6 +59,9 @@ class Grid:
 
             yield self.grid[new_row][new_col]
 
+    def get_cost_grid(self, mult: int) -> list[list[int]]:
+        """ Construct a grid with the cost to cross each cell. """
+        return [[mult-1 if c.symbol == "X" else 1 for c in row] for row in self.grid]
 
 @dataclass(order=True)
 class Node:
@@ -74,8 +86,8 @@ class Node:
         return math.sqrt((self.row - other.row) ** 2 + (self.col - other.col) ** 2)
 
 
-def get_galaxy_combinations(
-    galaxies: list[Node],
+def get_combinations(
+    galaxies: Iterable[Node],
 ) -> Generator[tuple[Node, Node], None, None]:
     """Creates a generator with all combinations of galaxies of length 2."""
     for i in range(len(galaxies) - 1):
@@ -89,7 +101,7 @@ def expand_empty(data: list[list[str]]) -> list[list[str]]:
     If entire row/col is empty (i.e. `.`), add another empty row/col
     right next to it.
     """
-    empty_row = ["."] * len(data[0])
+    empty_row = ["X"] * len(data[0])
     empty_rows = [idx for idx, row in enumerate(data) if all(c == "." for c in row)]
     empty_rows.reverse()
 
@@ -99,12 +111,10 @@ def expand_empty(data: list[list[str]]) -> list[list[str]]:
     empty_cols.reverse()
 
     for idx in empty_rows:
-        data[idx:idx] = [empty_row]
-
+        data[idx:idx] = [empty_row.copy()]
     for ridx in range(len(data)):
         for cidx in empty_cols:
-            data[ridx][cidx:cidx] = ["."]
-
+            data[ridx][cidx:cidx] = ["X"]
     return data
 
 
@@ -125,6 +135,27 @@ def parse_grid(data: str, expand: bool = True) -> Grid:
     ]
     return Grid(nodes)
 
+def get_gridpoints_between_nodes(n1: Node, n2: Node) -> list[tuple[int, int]]:
+    """
+    Create a list of coordinates to travel from 1 node to another.
+    A simple L-shaped movement is assumed.
+    """
+    min_row = min(n1.row, n2.row)
+    max_row = max(n1.row, n2.row)
+    min_col = min(n1.col, n2.col)
+    max_col = max(n1.col, n2.col)
+
+    coords = []
+
+    for colidx in range(min_col, max_col+1):
+        coords.append((min_row, colidx))
+    
+    for rowidx in range(min_row+1, max_row+1):
+        coords.append((rowidx, min_col))
+
+    return coords
+
+
 
 def compute(data: str) -> int:
     """Compute the result for part 1"""
@@ -132,13 +163,32 @@ def compute(data: str) -> int:
     galaxies = grid.get_galaxy_nodes()
 
     total_length = 0
-    for start, stop in get_galaxy_combinations(galaxies):
-        # length of parths is just the sum of delta_row + delta_column
+    for start, stop in get_combinations(galaxies):
+        # length of paths is just the sum of delta_row + delta_column
         n_steps = abs(stop.row - start.row) + abs(stop.col - start.col)
         total_length += n_steps
 
     return total_length
 
+def compute2(data: str, multiplier: int) -> int:
+    """ Compute the result for part 2"""
+    grid = parse_grid(data)
+    galaxies = grid.get_galaxy_nodes()
+
+    # Calculate the cost grid for traveling across space
+    cost_grid = grid.get_cost_grid(multiplier)
+
+    total_length = 0
+    for start, stop in get_combinations(galaxies):
+        # get simple path for travelling from 1 node to other
+        coords = get_gridpoints_between_nodes(start, stop)
+
+        # Calculate path length
+        # subtract 1 because we don't need the cost of the start_node
+        path_length = sum(cost_grid[row][col] for row, col in coords) - 1
+        total_length += path_length
+
+    return total_length
 
 def main() -> None:
     """Runnning puzzle input"""
@@ -146,7 +196,9 @@ def main() -> None:
         data = f.read()
 
     result = compute(data)
+    result2 = compute2(data, 1000000)
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
