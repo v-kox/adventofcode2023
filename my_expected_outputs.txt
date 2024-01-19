@@ -24,7 +24,7 @@ day	10	part	2   423
 day	11	part	1   9686930
 day	11	part	2   630728425490
 day	12	part	1   7090
-day	12	part	2
+day	12	part	2   6792010726878
 day	13	part	1
 day	13	part	2
 day	14	part	1

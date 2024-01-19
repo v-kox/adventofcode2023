@@ -1,5 +1,5 @@
 from utils import get_integers_from_line
-
+from functools import lru_cache
 INPUT0 = """\
 ???.### 1,1,3
 """
@@ -15,6 +15,7 @@ INPUT1 = """\
 ?###???????? 3,2,1
 """
 EXPECTED1 = 21
+EXPECTED2 = 525152
 
 
 def test_case0():
@@ -27,7 +28,16 @@ def test_case1():
     assert compute(INPUT1) == EXPECTED1
 
 
-def count_arrangements(line: str, groups: list[int]) -> int:
+def test_case2():
+    """Test case provided example part 2"""
+    assert compute2(INPUT1) == EXPECTED2
+
+
+# For part 2 add cache to function. To avoid recalculating the same sequence.
+# Also changed groups parameter from list to tuple, since list is mutable and
+# thus not hashable for caching
+@lru_cache(maxsize=None)
+def count_arrangements(line: str, groups: tuple[int]) -> int:
     """
     Count the max possible arrangements of
     """
@@ -88,9 +98,24 @@ def compute(data: str) -> int:
         format1, format2 = line.split()
 
         # Get groupings of broken springs
-        groups = get_integers_from_line(format2)
+        groups = tuple(get_integers_from_line(format2))
 
         total += count_arrangements(format1, groups)
+
+    return total
+
+
+def compute2(data: str) -> int:
+    total = 0
+    for line in data.splitlines():
+        format1, format2 = line.split()
+
+        line = "?".join(5*[format1])
+
+        groups = tuple(5*get_integers_from_line(format2))
+
+        # Get groupings of broken springs
+        total += count_arrangements(line, groups)
 
     return total
 
@@ -101,7 +126,9 @@ def main():
         data = f.read()
 
     result = compute(data)
+    result2 = compute2(data)
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
