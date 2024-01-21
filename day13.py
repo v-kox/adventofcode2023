@@ -10,6 +10,7 @@ INPUT1 = """\
 #.#.##.#.
 """
 EXPECTED1 = 5
+EXPECTED5 = 300
 
 INPUT2 = """\
 #...##..#
@@ -21,6 +22,7 @@ INPUT2 = """\
 #....#..#
 """
 EXPECTED2 = 400
+EXPECTED6 = 100
 
 INPUT3 = """\
 #.##..##.
@@ -40,6 +42,7 @@ INPUT3 = """\
 #....#..#
 """
 EXPECTED3 = 405
+EXPECTED7 = 400
 
 INPUT4 = """\
 ...###.#.....##..
@@ -77,44 +80,62 @@ def test_case4():
     assert compute(INPUT4) == EXPECTED4
 
 
+def test_case5():
+    """Test case reflect line at the end of the field"""
+    assert compute2(INPUT1) == EXPECTED5
+
+
+def test_case6():
+    """Test case reflect line at the end of the field"""
+    assert compute2(INPUT2) == EXPECTED6
+
+
+def test_case7():
+    """Test case reflect line at the end of the field"""
+    assert compute2(INPUT3) == EXPECTED7
+
+
 class Field:
-    """ wrapper class around lava fields """
+    """wrapper class around lava fields"""
+
     def __init__(self, grid: list[str]):
         self.grid = grid
         self.ncols = len(grid[0])
         self.nrows = len(grid)
 
-    def _is_reflect(self, idx) -> bool:
+    def _is_reflect(self, idx, max_delta: int = 0) -> bool:
         """
-        Return True if the current index is a vertical reflect linet
+        Return True if the index is a vertical reflect line where the number
+        of differences in the reflection is exactly equal to the max_delta
+        value provided (default: 0)
         """
 
         # Compute ranges to check reflection
         r1 = range(idx - 1, max(0, 2 * idx - self.ncols) - 1, -1)
         r2 = range(idx, min(self.ncols, 2 * idx))
 
-        # If in any row relevant columns do not match, return False
-        # else return True
+        # Count the number of differences in the reflection at the current idx
+        delta = 0
         for x, y in zip(r1, r2):
-            if not all(s[x] == s[y] for s in self.grid):
-                return False
-        return True
+            delta += [s[x] != s[y] for s in self.grid].count(True)
 
-    def find_reflection(self) -> int:
+        return delta == max_delta
+
+    def find_reflection(self, max_delta: int = 0) -> int:
         """
         Loop over all columns and return the index of the reflect line.
         i.e. if function returns 5, reflect between 4th and 5th element of field.
         If no reflection found, return 0
         """
         for idx in range(1, self.ncols):
-            if self._is_reflect(idx):
+            if self._is_reflect(idx, max_delta):
                 return idx
 
         return 0
 
     def flip_field(self) -> Field:
         """
-        Flip a field 90 degrees, rows becaome columns and vice versa. 
+        Flip a field 90 degrees, rows becaome columns and vice versa.
         returns a new (flipped) Field
         """
         flipped = [
@@ -125,9 +146,8 @@ class Field:
         return Field(flipped)
 
 
-def compute(data: str) -> int:
-    """Compute result part 1"""
-    # Create a list of the fields in the input file
+def read_fields_from_input(data: str) -> list[Field]:
+    """Create a list of fields from the input"""
     raw_fields: list[list[str]] = [[]]
     field_idx = 0
     for line in data.splitlines():
@@ -136,7 +156,12 @@ def compute(data: str) -> int:
             raw_fields.append([])
         else:
             raw_fields[field_idx].append(line)
-    fields = [Field(r) for r in raw_fields]
+    return [Field(r) for r in raw_fields]
+
+
+def compute(data: str) -> int:
+    """Compute result part 1"""
+    fields = read_fields_from_input(data)
 
     total = 0
 
@@ -145,10 +170,29 @@ def compute(data: str) -> int:
         # Check for a vertical reflect line
         r = field.find_reflection()
         if not r:
-            # If no reflect found, 
+            # If no reflect found,
             # Flip field and look for horizontal reflect line
             flipped = field.flip_field()
             r = 100 * flipped.find_reflection()
+        total += r
+    return total
+
+
+def compute2(data: str) -> int:
+    """Compute result part 1"""
+    fields = read_fields_from_input(data)
+
+    total = 0
+
+    # Compute reflect for all fields
+    for field in fields:
+        # Check for a vertical reflect line
+        r = field.find_reflection(max_delta=1)
+        if not r:
+            # If no reflect found,
+            # Flip field and look for horizontal reflect line
+            flipped = field.flip_field()
+            r = 100 * flipped.find_reflection(max_delta=1)
         total += r
     return total
 
@@ -158,7 +202,10 @@ def main():
     with open("day13_input.txt", "r") as f:
         data = f.read()
     result = compute(data)
+    result2 = compute2(data)
+
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
