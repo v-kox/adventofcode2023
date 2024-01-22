@@ -37,7 +37,7 @@ class Lightbeam:
             return False
 
     def __hash__(self) -> int:
-        """ Make it hashable for the seen cache of the grid"""
+        """Make it hashable for the seen cache of the grid"""
         return hash((self.row, self.col, self.direction))
 
 
