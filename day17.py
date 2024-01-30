@@ -22,10 +22,28 @@ INPUT1 = """\
 4322674655533
 """
 EXPECTED1 = 102
+EXPECTED2 = 94
+
+INPUT3 = """\
+111111111111
+999999999991
+999999999991
+999999999991
+999999999991
+"""
+EXPECTED3 = 71
 
 
 def test_case1():
     assert compute(INPUT1) == EXPECTED1
+
+
+def test_case2():
+    assert compute2(INPUT1) == EXPECTED2
+
+
+def test_case3():
+    assert compute2(INPUT3) == EXPECTED3
 
 
 # Some type aliases
@@ -127,10 +145,21 @@ class Grid(NamedTuple):
         print(f"\n{raw_str}\n")
 
 
-def get_path_dijkstra(grid: Grid, start: Node, end: Node) -> tuple[int, list[Node]]:
+def get_path_dijkstra(
+    grid: Grid,
+    start: Node,
+    end: Node,
+    min_steps: int = 1,
+    max_steps: int = 3,
+) -> tuple[int, list[Node]]:
     """
     Implementation of Dijkstra's pathfinding alghoritm.
-    https://en.wikipedia.org/wiki/Dijkstra's_algorithm
+    https://en.wikipedia.org/wiki/Dijkstra's_algorithm.
+
+    NOTE: Because we have to move in a certain direction with a given range of steps.
+    Cannot simply use (row, col) coordinates to identify a node. 
+    Need to add the direction moved and the number of steps in the same direction
+    to the identifier to find the optimal solution.
     """
 
     def get_path_to_node(node: Node) -> list[Node]:
@@ -153,17 +182,17 @@ def get_path_dijkstra(grid: Grid, start: Node, end: Node) -> tuple[int, list[Nod
     visited: set[NodeId] = set()
 
     # Priority Queue to expand the nodes in the grid.
-    queue: list[tuple[int, Node, int]] = []
-    heapq.heappush(queue, (dist[start.id], start, 0))
+    queue: list[tuple[int, Node]] = []
+    heapq.heappush(queue, (dist[start.id], start))
 
     while queue:
         # Get the next Node in the queue and add it to the visited set
-        ccost, cnode, csteps = heapq.heappop(queue)
+        ccost, cnode = heapq.heappop(queue)
         visited.add(cnode.id)
 
-        if cnode.coord == end.coord:
-            # If we are at the coordinates of the end node. We found the path.
-            # Construct the path and return the cost to reach the end node.
+        if cnode.coord == end.coord and min_steps <= cnode.steps <= max_steps:
+            # If we are at the coordinates of the end node. And we are within the
+            # acceptable range of steps. Construct the path and return the cost.
             return ccost, get_path_to_node(cnode)
 
         # Loop over all possible directions
@@ -172,6 +201,11 @@ def get_path_dijkstra(grid: Grid, start: Node, end: Node) -> tuple[int, list[Nod
                 # We cannot go in the reverse direction from which we are coming.
                 # i.e. We went South to reach the current node. Then we can't go
                 # North
+                continue
+
+            if offset != cnode.direction and cnode.steps < min_steps:
+                # If we haven't reached the minimum number of steps we cannot
+                # yet change direction.
                 continue
 
             try:
@@ -184,7 +218,7 @@ def get_path_dijkstra(grid: Grid, start: Node, end: Node) -> tuple[int, list[Nod
                 # If Node already visited, continue
                 continue
 
-            if nnode.steps > 3:
+            if nnode.steps > max_steps:
                 # Cannot move more than 3 steps into any direction
                 continue
 
@@ -196,7 +230,7 @@ def get_path_dijkstra(grid: Grid, start: Node, end: Node) -> tuple[int, list[Nod
                 # and add the node to the queue
                 dist[nnode.id] = ncost
                 prev_nodes[nnode.id] = cnode
-                heapq.heappush(queue, (ncost, nnode, nnode.steps))
+                heapq.heappush(queue, (ncost, nnode))
 
     raise AssertionError("Cannot reach end node.")
 
@@ -217,7 +251,20 @@ def compute(data: str) -> int:
     end = Node(max_row, max_col, grid.get_cost(max_row, max_col), Offsets.EAST, 0)
 
     cost, path = get_path_dijkstra(grid, start, end)
+    return cost
 
+
+def compute2(data: str) -> int:
+    """Compute the result for the puzzle input"""
+    grid = read_grid(data)
+
+    # Get start and end nodes
+    start = Node(0, 0, 0, Offsets.EAST, 0)
+    max_row = grid.nrows - 1
+    max_col = grid.ncols - 1
+    end = Node(max_row, max_col, grid.get_cost(max_row, max_col), Offsets.EAST, 0)
+
+    cost, path = get_path_dijkstra(grid, start, end, 4, 10)
     return cost
 
 
@@ -227,8 +274,10 @@ def main():
         data = f.read()
 
     result = compute(data)
+    result2 = compute2(data)
 
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
