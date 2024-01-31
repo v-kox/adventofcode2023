@@ -20,6 +20,7 @@ L 2 (#015232)
 U 2 (#7a21e3)
 """
 EXPECTED1 = 62
+EXPECTED2 = 952408144115
 
 
 def test_case1():
@@ -27,8 +28,12 @@ def test_case1():
     assert compute(INPUT1) == EXPECTED1
 
 
+def test_case2():
+    assert compute2(INPUT1) == EXPECTED2
+
+
 Coord = tuple[int, int]
-Step = tuple[Offsets, int, str]
+Step = tuple[Offsets, int]
 
 
 class Node(NamedTuple):
@@ -36,7 +41,6 @@ class Node(NamedTuple):
 
     row: int
     col: int
-    color: str
 
     @property
     def coord(self) -> Coord:
@@ -64,24 +68,24 @@ class Grid(NamedTuple):
         print(f"\n{raw_str}\n")
 
 
-def compute_end_vertex(start: Node, direction: Offsets, steps: int, color: str) -> Node:
+def compute_end_vertex(start: Node, direction: Offsets, steps: int) -> Node:
     """Compute the next node of the vertex"""
     new_row = start.row + steps * direction.value[0]
     new_col = start.col + steps * direction.value[1]
 
-    return Node(new_row, new_col, color)
+    return Node(new_row, new_col)
 
 
 def parse_line(line: str) -> Step:
     """Get the data from a line of data"""
-    re_line = re.compile(r"([A-Z]) (\d+) \((#[a-z0-9]{6})\)")
+    re_line = re.compile(r"([A-Z]) (\d+) \(#[a-z0-9]{6}\)")
 
     re_match = re_line.match(line)
 
     if re_match is None:
         raise ValueError(f"Cannot properly parse line {line}.")
 
-    dir_str, nsteps, color = re_match.groups()
+    dir_str, nsteps = re_match.groups()
 
     match dir_str:
         case "U":
@@ -95,7 +99,33 @@ def parse_line(line: str) -> Step:
         case _:
             raise ValueError(f"Unknown direction string: {dir_str}")
 
-    return (direction, int(nsteps), color)
+    return (direction, int(nsteps))
+
+
+def parse_line_color(line: str) -> Step:
+    """Parse the step data from the color hex value in the line"""
+    re_line = re.compile(r"[A-Z] \d+ \(#([a-z0-9]{5})(\d)\)")
+
+    re_match = re_line.match(line)
+
+    if re_match is None:
+        raise ValueError(f"Cannot properly parse line {line}.")
+
+    nsteps, dir_str = re_match.groups()
+
+    match dir_str:
+        case "0":
+            direction = Offsets.EAST
+        case "1":
+            direction = Offsets.SOUTH
+        case "2":
+            direction = Offsets.WEST
+        case "3":
+            direction = Offsets.NORTH
+        case _:
+            raise ValueError(f"Unknown direction string: {dir_str}")
+    # breakpoint()
+    return (direction, int(nsteps, 16))
 
 
 def compute_area(nodes: list[Node]) -> int:
@@ -115,7 +145,7 @@ def get_path(steps: list[Step]) -> tuple[list[Node], Grid, int]:
     """
     Construct the vertices from the list of Steps needed to take
     """
-    prev_node = Node(0, 0, "")
+    prev_node = Node(0, 0)
     nodes = [prev_node]
     total_length_path = 0
     min_row = 0
@@ -123,9 +153,9 @@ def get_path(steps: list[Step]) -> tuple[list[Node], Grid, int]:
     min_col = 0
     max_col = 0
 
-    for offset, nsteps, color in steps:
+    for offset, nsteps in steps:
         total_length_path += nsteps
-        new_node = compute_end_vertex(nodes[-1], offset, nsteps, color)
+        new_node = compute_end_vertex(nodes[-1], offset, nsteps)
         nodes.append(new_node)
 
         # Check for grid edges
@@ -165,14 +195,26 @@ def compute(data: str) -> int:
     return path_length + nodes_inside
 
 
+def compute2(data: str) -> int:
+    """Compute the result for the puzzle input part 2"""
+    steps = [parse_line_color(line) for line in data.splitlines()]
+    vertices, grid, path_length = get_path(steps)
+    # grid.print_path(vertices)
+    area = compute_area(vertices)
+    nodes_inside = pick_theorem(path_length, area)
+    return path_length + nodes_inside
+
+
 def main():
     """Run puzzle input"""
     with open("day18_input.txt", "r") as f:
         data = f.read()
 
     result = compute(data)
+    result2 = compute2(data)
 
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
