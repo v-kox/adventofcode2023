@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from typing import Callable, NamedTuple, Optional
 
@@ -23,6 +25,7 @@ hdj{m>838:A,pv}
 {x=2127,m=1623,a=2188,s=1013}
 """
 EXPECTED1 = 19114
+EXPECTED2 = 167409079868000
 
 
 def test_parse_part_string():
@@ -89,6 +92,11 @@ def test_case1():
     assert compute(INPUT1) == EXPECTED1
 
 
+def test_case2():
+    """test case example part 2"""
+    assert compute2(INPUT1) == EXPECTED2
+
+
 class Part(NamedTuple):
     """Wrappaer class to represent a Part in the puzzle"""
 
@@ -148,9 +156,94 @@ class Rule(NamedTuple):
 
         return self._test_func(getattr(p, self._test_param))
 
+    def _less_than_range(self, r: range) -> range:
+        """
+        From the given range compute the new range smaller
+        than the test value
+        """
+        return range(r.start, min(r.stop, self._test_value))
+
+    def _less_than_or_equal_range(self, r: range) -> range:
+        """
+        From the given range compute the new range smaller
+        than or equal to the test value
+        """
+        return range(r.start, min(r.stop, self._test_value + 1))
+
+    def _greater_than_range(self, r: range) -> range:
+        """
+        From the given range compute the new range greater
+        than the test value
+        """
+        return range(max(r.start, self._test_value + 1), r.stop)
+
+    def _greater_or_equal_than_range(self, r: range) -> range:
+        """
+        From the given range compute the new range greater
+        than or equal to the test value
+        """
+        return range(max(r.start, self._test_value), r.stop)
+
+    def _equals_range(self, r: range) -> range:
+        """
+        if the test value lies within the range, return a new range
+        of length 1 containing the test value.
+        Otherwise return a new range of length 0
+        """
+        if self._test_value in r:
+            new_range = range(self._test_value, self._test_value + 1)
+        else:
+            new_range = range(self._test_value, self._test_value)
+        return new_range
+
+    def _not_equals_range(self, r: range) -> list[range]:
+        """
+        Return a combination of the range smaller than and greater than
+        the test value
+        """
+        return [self._less_than_range(r), self._greater_than_range(r)]
+
+    def check_range(self, r: PartRange) -> tuple[PartRange, list[PartRange]]:
+        """
+        Compute the ranges for which the rule is valid and invalid.
+
+        Returns a range for which the rule is valid and a list of ranges
+        for which the rule is invalid
+        """
+        if self.test is None:
+            # If no test, than whole range is valid
+            return r, []
+
+        # get the range for the parameter and compute valid and invalid range
+        test_range = r[self._test_param]
+
+        match self._op_str:
+            case "<":
+                v_range = self._less_than_range(test_range)
+                i_range = [self._greater_or_equal_than_range(test_range)]
+            case ">":
+                v_range = self._greater_than_range(test_range)
+                i_range = [self._less_than_or_equal_range(test_range)]
+            case "=":
+                v_range = self._equals_range(test_range)
+                i_range = self._not_equals_range(test_range)
+            case _:
+                raise AssertionError(f"Invalid operator: {self._op_str}")
+
+        # construct new valid and invalid PartRanges
+        valid_range = r.copy()
+        valid_range[self._test_param] = v_range
+
+        invalid_range = [r.copy() for _ in i_range]
+        for idx, ir in enumerate(invalid_range):
+            ir[self._test_param] = i_range[idx]
+
+        return (valid_range, invalid_range)
+
 
 # helper type
 Workflow = dict[str, list[Rule]]
+PartRange = dict[str, range]
 
 
 def get_rule_from_string(rule: str) -> Rule:
@@ -210,6 +303,70 @@ def is_part_accepted(part: Part, wfs: Workflow, start_wf: str = "in") -> bool:
         return is_part_accepted(part, wfs, result)
 
 
+def get_accepted_ranges(wfs: Workflow):
+    """Compute the accepted part paramter ranges"""
+
+    # start ranges is all parameters 0 - 4000
+    # workflows always start with workflow `in`
+    start_range = {
+        "x": range(1, 4001),
+        "a": range(1, 4001),
+        "s": range(1, 4001),
+        "m": range(1, 4001),
+    }
+    queue = [("in", 0, start_range)]
+    accepted_ranges = []
+
+    while queue:
+        wf_name, rule_idx, crange = queue.pop()
+
+        # If result of current range is accepted, add to accepted ranges and continue
+        # If rejected, continue to next range
+        if wf_name == "A":
+            accepted_ranges.append(crange)
+            continue
+        elif wf_name == "R":
+            continue
+
+        # Get the wf we need
+        cwf = wfs[wf_name]
+
+        # if the step is larger than the length of the workflow, range is invalid
+        if rule_idx >= len(cwf):
+            print("This should not run")
+            continue
+
+        # Get the current rule to apply and compute the valid and invalid ranges
+        # for that rule
+        crule = cwf[rule_idx]
+        valid_range, invalid_ranges = crule.check_range(crange)
+
+        # If valid range not empty
+        # queue up the valid range with the result of the rule
+        if len(valid_range) > 0:
+            queue.append((crule.result, 0, valid_range))
+
+        # For each non empty invalid range
+        # queue up the next step in the workflow
+        for irange in invalid_ranges:
+            if len(irange) > 0:
+                queue.append((wf_name, rule_idx + 1, irange))
+
+    return accepted_ranges
+
+
+def aggregate_partrange(part_range: PartRange) -> int:
+    """
+    Compute the number of accepted possibilities for a given acceptable part range
+    """
+    result = 1
+
+    for _, value in part_range.items():
+        result *= len(value)
+
+    return result
+
+
 def parse_data(data: str) -> tuple[Workflow, list[Part]]:
     """
     Parse the input data format into a workflow dict and a list of Parts
@@ -243,14 +400,25 @@ def compute(data: str) -> int:
     return sum(p.x + p.s + p.m + p.a for p in accepted_parts)
 
 
+def compute2(data: str) -> int:
+    """Compute the puzzle output part 2"""
+    wfs, _ = parse_data(data)
+
+    accepted_ranges = get_accepted_ranges(wfs)
+
+    return sum(aggregate_partrange(pr) for pr in accepted_ranges)
+
+
 def main():
     """Run puzzle input"""
     with open("day19_input.txt", "r") as f:
         data = f.read()
 
     result = compute(data)
+    result2 = compute2(data)
 
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
