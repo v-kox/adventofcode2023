@@ -1,6 +1,7 @@
 """ Advent of Code 2023 day 5 """
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Optional
 
 from utils import get_integers_from_line

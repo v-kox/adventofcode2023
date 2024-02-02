@@ -3,7 +3,8 @@
 import math
 from dataclasses import dataclass
 
-from utils import get_integers_from_line, get_numbers_from_line
+from utils import get_integers_from_line
+from utils import get_numbers_from_line
 
 INPUT1 = """\
 Time:      7  15   30

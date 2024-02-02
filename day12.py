@@ -1,5 +1,7 @@
-from utils import get_integers_from_line
 from functools import lru_cache
+
+from utils import get_integers_from_line
+
 INPUT0 = """\
 ???.### 1,1,3
 """

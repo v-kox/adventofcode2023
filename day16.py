@@ -1,4 +1,5 @@
-from day16_utils import Grid, Lightbeam
+from day16_utils import Grid
+from day16_utils import Lightbeam
 from utils import Offsets
 
 INPUT1 = r"""

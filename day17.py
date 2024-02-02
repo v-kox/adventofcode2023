@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import heapq
 import math
-from typing import Generator, NamedTuple
+from typing import Generator
+from typing import NamedTuple
 
 from utils import Offsets
 

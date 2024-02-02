@@ -1,6 +1,8 @@
 from __future__ import annotations
-from utils import Offsets
+
 import pytest
+
+from utils import Offsets
 
 INPUT0 = """\
 OOOO.#.O..

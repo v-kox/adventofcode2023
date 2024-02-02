@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
-from typing import Callable, NamedTuple, Optional
+from typing import Callable
+from typing import NamedTuple
+from typing import Optional
 
 from utils import get_integers_from_line
 
