@@ -1,6 +1,8 @@
+import math
 import re
 
 from day20_utils import HIGH
+from day20_utils import LOW
 from day20_utils import Broadcast
 from day20_utils import Button
 from day20_utils import Conjunction
@@ -149,6 +151,59 @@ def compute_pulses(
     return n_low, n_high
 
 
+def compute_button_presses(
+    modules: dict[str, Module],
+    button: Button,
+) -> int:
+    """Compute low and high pulse count"""
+    # start queue of pulses
+    pulse_queue: list[Pulse] = []
+    pulse_queue.append(button.push())
+
+    # rx is fed by conjunction ls, which is fed by 4 nodes.
+    # All 4 of these nodes need to give a high pulse to ls.
+    # this dict will keep the first number of button presses
+    # where each source sends a high pulse to ls
+    rx_sources = {
+        "tx": None,
+        "dd": None,
+        "nz": None,
+        "ph": None,
+    }
+
+    while True:
+        if not pulse_queue:
+            # Queue is empty, push the button
+            pulse = button.push()
+            pulse_queue.append(pulse)
+        else:
+            # get first pulse from the queue
+            pulse = pulse_queue.pop(0)
+
+            # Check if the current pulse is a HIGH pulse to ls.
+            if pulse.dest == "ls" and pulse.level == HIGH:
+                if rx_sources[pulse.source] is None:
+                    rx_sources[pulse.source] = button.n_push
+
+            # If all sources are filled in, break loop
+            if all(x is not None for x in rx_sources.values()):
+                break
+
+            if pulse.level == LOW and pulse.dest == "rx":
+                # This would take an unreasonable amount of time to reach
+                break
+
+            # get new puleses from the destination module and add to queue
+            new_pulses = modules.get(
+                pulse.dest,
+                Untyped(pulse.dest),
+            ).receive_pulse(pulse)
+            pulse_queue += new_pulses
+
+    # If we have a count for each input, find least common multiplier
+    return math.lcm(*rx_sources.values())
+
+
 def compute(data: str) -> int:
     modules = parse_modules(data)
 
@@ -160,14 +215,27 @@ def compute(data: str) -> int:
     return n_high * n_low
 
 
+def compute2(data: str) -> int:
+    modules = parse_modules(data)
+
+    # Create button. Push button to start sequence
+    button = Button()
+
+    n_button = compute_button_presses(modules, button)
+
+    return n_button
+
+
 def main():
     """Run puzzle input"""
     with open("day20_input.txt", "r") as f:
         data = f.read()
 
     result = compute(data)
+    result2 = compute2(data)
 
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":

@@ -99,7 +99,8 @@ class FlipFlop(Module):
 class Conjunction(Module):
     """
     Conjunction module:
-    sends pulse depending on the previousle received pules from it's inputs"""
+    sends pulse depending on the previousle received pules from it's inputs
+    """
 
     symbol = "&"
 
