@@ -41,7 +41,7 @@ day	19	part	1   383682
 day	19	part	2   117954800808317
 day	20	part	1   869395600
 day	20	part	2   232605773145467
-day	21	part	1
+day	21	part	1   3699
 day	21	part	2
 day	22	part	1
 day	22	part	2
