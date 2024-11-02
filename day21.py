@@ -1,3 +1,4 @@
+from collections import deque
 from typing import Iterable
 from typing import Optional
 
@@ -27,11 +28,13 @@ def test_case1():
 class Node:
     """Representation of a Node"""
 
-    def __init__(self, row: int, col: int, symbol: str = "", n_steps: int = 0) -> None:
+    def __init__(self, row: int, col: int, symbol: str = "") -> None:
         self.row = row
         self.col = col
         self.symbol = symbol
-        self.n_steps = n_steps
+
+    def __repr__(self) -> str:
+        return f"Node({self.row}, {self.col}, '{self.symbol}')"
 
     @property
     def is_rock(self) -> bool:
@@ -64,6 +67,10 @@ class Grid:
     def in_grid(self, node: Node) -> bool:
         """Return True if the coordinates of the node are within the grid"""
         return 0 <= node.row < self.nrows and 0 <= node.col < self.ncols
+
+    def coord_in_grid(self, rown: int, coln: int) -> bool:
+        """Return True if the coordinates are within the grid"""
+        return 0 <= rown < self.nrows and 0 <= coln < self.ncols
 
     @property
     def start_node(self) -> Node:
@@ -101,60 +108,11 @@ class Grid:
             new_row = node.row + offset.value[0]
             new_col = node.col + offset.value[1]
 
-            if self.in_grid(Node(new_row, new_col, "")):
+            if self.coord_in_grid(new_row, new_col):
                 nnode = self.grid[new_row][new_col]
-                nnode.n_steps = node.n_steps + 1
                 nodes.append(nnode)
 
         return nodes
-
-
-def walk_grid(grid: Grid, max_steps: int) -> set[Node]:
-    """
-    Walk the grid and determine which nodes you can reach in exactly
-    `max_steps` number of steps.
-    """
-    start_node = grid.start_node
-    walk_nodes: set[Node] = set()
-
-    # queue of nodes to process
-    queue = [start_node]
-
-    # Set of coordinates of already visited nodes.
-    visited: set[tuple[int, int]] = set()
-
-    while queue:
-        node = queue.pop(0)
-
-        # If nodes already visited skip it.
-        # Otherwise add it to visited set and continue
-        if (node.row, node.col) in visited:
-            continue
-        else:
-            visited.add((node.row, node.col))
-
-        # If node is a rock, we cant pass so continue
-        if node.is_rock:
-            continue
-
-        # if we exceed the max number of steps we can't reach it, so continue
-        if node.n_steps > max_steps:
-            continue
-
-        # If the total number of remaining steps ,after we reach the current node,
-        # is divisible by 2, then we can reach this node as an end point by walking to
-        # the next node and back until we are out of steps.
-        # This avoids reprocessing nodes many times with different step counts
-        if (max_steps - node.n_steps) % 2 == 0:
-            walk_nodes.add(node)
-
-        # Get neighbours of the current node.
-        # If they are not yet visited, add them to queue
-        neighbours = grid.get_neighbours(node)
-        queue += [n for n in neighbours if (n.row, n.col) not in visited]
-
-    # Return reachable nodes
-    return walk_nodes
 
 
 def parse_grid(data: str) -> Grid:
@@ -167,12 +125,116 @@ def parse_grid(data: str) -> Grid:
     )
 
 
+def bfs_grid(grid: Grid, start: Node) -> dict[Node, int]:
+    """
+    This is a bread first search implementation to find the minimum number of steps
+    needed to reach any point in a grid from a given start point `start`
+    """
+    visited: dict[Node, int] = {}
+
+    queue: deque[tuple[int, Node]] = deque([(0, start)])
+    while queue:
+        dist, node = queue.popleft()
+
+        if node in visited:
+            # node already checked. Skip.
+            continue
+
+        visited[node] = dist
+
+        neighbours = grid.get_neighbours(node)
+
+        for neighbour in neighbours:
+            if not neighbour.is_rock:
+                queue.append((dist + 1, neighbour))
+
+    return visited
+
+
+def is_even(i: int) -> bool:
+    return i % 2 == 0
+
+
+def is_odd(i: int) -> bool:
+    return i % 2 > 0
+
+
 def compute(data: str, max_steps: int) -> int:
     """Compute the result of the provided input for the max_steps"""
     grid = parse_grid(data)
-    reachable_nodes = walk_grid(grid, max_steps)
+    start_node = grid.start_node
 
-    return len(reachable_nodes)
+    # Get minimum distance to each reachable node
+    bfsgrid = bfs_grid(grid, start_node)
+
+    # if the max_steps is even, the minimal distance to reach it must also be even.
+    # since walkbacks are allowed.
+    if max_steps % 2 == 0:
+        f = is_even
+    else:
+        f = is_odd
+
+    # filter out irrelivant nodes
+    possible_nodes = [(n, d) for n, d in bfsgrid.items() if d <= max_steps and f(d)]
+
+    return len(possible_nodes)
+
+
+def compute2(data: str, max_steps: int) -> int:
+    """
+    Compute part 2 the result of the provided input for the max_steps.
+
+    Solution is taken from:
+    https://advent-of-code.xavd.id/writeups/2023/day/21/
+
+    Really specific for the input data. But the end result is correct
+    """
+    grid = parse_grid(data)
+    start_node = grid.start_node
+
+    # square grid is assumed
+    dist2edge = grid.ncols // 2
+
+    # Get minimum distance to each reachable node
+    bfsgrid = bfs_grid(grid, start_node)
+
+    # get total number of even and odd nodes in the map
+    n_even_nodes = sum(1 for (_, dist) in bfsgrid.items() if dist % 2 == 0)
+    n_odd_nodes = sum(1 for (_, dist) in bfsgrid.items() if dist % 2 == 1)
+
+    # get number of even/odd nodes you can reach in less than dist2edge steps
+    n_even_reachable = sum(
+        dist <= dist2edge for (_, dist) in bfsgrid.items() if dist % 2 == 0
+    )
+    n_odd_reachable = sum(
+        dist <= dist2edge for (_, dist) in bfsgrid.items() if dist % 2 == 1
+    )
+
+    # get number of even/odd nodes we cannot reach in less than dist2edge steps
+    n_even_corners = sum(
+        dist > dist2edge for (_, dist) in bfsgrid.items() if dist % 2 == 0
+    )
+    n_odd_corners = sum(
+        dist > dist2edge for (_, dist) in bfsgrid.items() if dist % 2 == 1
+    )
+
+    # number of tile boundaries we will cross.
+    # Assuming we start in the center
+    n_tile_boundaries = (max_steps - dist2edge) // grid.ncols
+
+    if max_steps % 2 == 1:
+        n_odd_tiles = (n_tile_boundaries + 1) ** 2
+        n_even_tiles = n_tile_boundaries**2
+    else:
+        n_odd_tiles = n_tile_boundaries**2
+        n_even_tiles = (n_tile_boundaries + 1) ** 2
+
+    return (
+        n_odd_tiles * n_odd_nodes
+        + n_even_tiles * n_even_nodes
+        - ((n_tile_boundaries + 1) * n_odd_corners)
+        + (n_tile_boundaries * n_even_corners)
+    )
 
 
 def main():
@@ -181,8 +243,10 @@ def main():
         data = f.read()
 
     result = compute(data, 64)
+    result2 = compute2(data, 26501365)
 
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
