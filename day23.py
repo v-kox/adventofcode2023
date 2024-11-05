@@ -32,6 +32,8 @@ INPUT1 = """\
 #####################.#
 """
 EXPECTED1 = 94
+def test_case1():
+    assert compute(INPUT1) == EXPECTED1
 
 
 @dataclass(frozen=True, eq=True, order=True)
@@ -186,7 +188,20 @@ class Grid:
         This works, but is very slow...
         Probably cause by reprocessing similar paths multiple times.
         """
-        paths2end = []
+
+        def _get_neighbour_nodes(path: List[Node]) -> List[Node]:
+            ncoords = path[-1].get_neighbour_coords()
+            nnodes = [self.get_node(nx, ny) for nx, ny in ncoords]
+            nodes = [
+                n for n in nnodes if n is not None and n.is_walkable and n not in path
+            ]
+
+            if len(nodes) == 1 and not nodes[0].is_end:
+                path.append(nodes[0])
+                return _get_neighbour_nodes(path)
+            return nodes
+
+        longest_path: List[Node] = []
         start_node = self.get_node(self.start_pos[0], self.start_pos[1])
 
         assert start_node is not None
@@ -198,29 +213,17 @@ class Grid:
             qpath = heapq.heappop(queue)
 
             if qpath[-1].is_end:
-                paths2end.append(qpath)
+                if len(qpath) > len(longest_path):
+                    longest_path = qpath
                 continue
 
-            for nx, ny in qpath[-1].get_neighbour_coords():
-                nnode = self.get_node(nx, ny)
+            nnodes = _get_neighbour_nodes(qpath)
 
-                if nnode is None:
-                    continue
-
-                if nnode in qpath:
-                    continue
-
-                if not nnode.is_walkable:
-                    continue
-
+            for nnode in nnodes:
                 new_path = qpath + [nnode]
                 heapq.heappush(queue, new_path)
 
-        return max(len(path) - 1 for path in paths2end)
-
-
-def test_case1():
-    assert compute(INPUT1) == EXPECTED1
+        return len(longest_path) - 1
 
 
 def compute(data: str) -> int:
