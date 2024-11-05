@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from typing import Generator
 from typing import List
@@ -18,6 +19,7 @@ INPUT1 = """\
 1,1,8~1,1,9
 """
 EXPECTED1 = 5
+EXPECTED2 = 7
 
 
 @pytest.mark.parametrize(
@@ -113,6 +115,11 @@ def test_support_on_vertical_brick():
 def test_case1():
     """Test case for example part 1"""
     assert compute(INPUT1) == EXPECTED1
+
+
+def test_case2():
+    """Test case for example part 2"""
+    assert compute2(INPUT1) == EXPECTED2
 
 
 @dataclass(frozen=True, eq=True)
@@ -226,33 +233,91 @@ class Graph:
         """
         return self._supports.get(brick, [])
 
+    def _can_disintegrate(self, brick: Brick) -> bool:
+        """
+        Check if a brick can be safely disintegrated.
+
+        A brick is safe to disintegrate if deleting it doesn't move any other bricks.
+        e.g. it doesn't support any other brick, or all bricks that it supports have at
+        least 1 more support
+        """
+        supports = self.get_supports(brick)
+
+        # This brick doesn't support anything. So can be disintegrated
+        if len(supports) == 0:
+            return True
+
+        # If all bricks that are supported by the current brick,
+        # are supported by at least one other brick.
+        # This brick can be disintegrated
+        n_supported_by = [len(self.get_supported_by(x)) for x in supports]
+
+        return all(x > 1 for x in n_supported_by)
+
     def get_bricks_safe_to_disintegrate(self) -> Set[Brick]:
         """
         Returns a set of bricks that are safe to disintegrate.
 
         A brick is safe to disintegrate if deleting it doesn't move any other bricks.
-        e.g. it doesn't support any other brick, or all bricks that it supports have at least
-        1 more support
+        e.g. it doesn't support any other brick, or all bricks that it supports have at
+        least 1 more support
         """
-        safe_bricks = []
+        safe_bricks = [brick for brick in self.bricks if self._can_disintegrate(brick)]
+        return set(safe_bricks)
 
-        for brick in self.bricks:
-            supports = self.get_supports(brick)
+    def _n_bricks_move_on_delete(self, brick: Brick) -> int:
+        """
+        Calculate how many bricks will move in the stack if a certain brick is deleted.
 
-            # This brick doesn't support anything. So can be disintegrated
-            if len(supports) == 0:
-                safe_bricks.append(brick)
+        This is done by using a queue and continuously remove moving bricks and
+        evaluating the bricks that were supported by the deleted bricks
+        """
+
+        # Check if this brick doesn't move anything
+        if self._can_disintegrate(brick):
+            return 0
+
+        # instantiate empty set with removed bricks
+        is_removed: Set[Brick] = set()
+        queue = deque([brick])
+        result = 0
+
+        while queue:
+            qbrick = queue.popleft()
+            if qbrick in is_removed:
                 continue
 
-            # If all bricks that are supported by the current brick,
-            # are supported by at least one other brick.
-            # This brick can be disintegrated
-            n_supported_by = [len(self.get_supported_by(x)) for x in supports]
+            # Keep track of what bricks are removed
+            is_removed.add(qbrick)
 
-            if all(x > 1 for x in n_supported_by):
-                safe_bricks.append(brick)
+            # get supports that will move if this brick is deleted
+            supports = self.get_supports(qbrick)
 
-        return set(safe_bricks)
+            for support in supports:
+                # check if the brick is supported by any other not deleted brick
+                supported_by = [
+                    x for x in self.get_supported_by(support) if x not in is_removed
+                ]
+                if len(supported_by) == 0:
+                    # brick is no longer supported, so add it to the queue to process
+                    # and increment result
+                    queue.append(support)
+                    result += 1
+
+        return result
+
+    def calculate_chain_reaction(self) -> int:
+        """
+        For each brick calculate how many bricks would move if it
+        was deleted.
+
+        Returns the sum of total number of movebable bricks
+        """
+        total_moveable = 0
+        for brick in self.bricks:
+            total_moveable += self._n_bricks_move_on_delete(brick)
+
+        return total_moveable
 
 
 def parse_line(line: str) -> Brick:
@@ -287,14 +352,21 @@ def compute(data: str) -> int:
     return len(safe_bricks)
 
 
+def compute2(data: str) -> int:
+    graph = parse_graph(data)
+
+    return graph.calculate_chain_reaction()
+
+
 def main() -> None:
     """Runnning puzzle input"""
     with open("day22_input.txt", "r") as f:
         data = f.read()
 
     result = compute(data)
-
+    result2 = compute2(data)
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
