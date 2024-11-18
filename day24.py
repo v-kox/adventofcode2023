@@ -5,6 +5,8 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+import sympy as sp
+
 INPUT1 = """\
 19, 13, 30 @ -2,  1, -2
 18, 19, 22 @ -1, -1, -2
@@ -18,6 +20,10 @@ EXPECTED1 = 2
 
 def test_case1():
     assert compute(INPUT1, LIMIT1) == EXPECTED1
+
+
+def test_case2():
+    assert compute2(INPUT1) == 47  # Line(point=(24, 13, 10), direction=(-3, 1, 2))
 
 
 @dataclass
@@ -119,11 +125,52 @@ def find_intersects(lines: List[Line], limits: Tuple[int, int]) -> int:
     return intersects
 
 
+def find_intersect_line(lines: List[Line]) -> Line:
+    """
+    By using the equations:
+    x0 + t * alpha0 = x1 + t * alpha1
+    y0 + t * beta0 = y1 + t * beta1
+    z0 + t * gamma0 = z1 + t * gamma1
+
+    Using 3 different hailstones, this results in 9 equations
+    for 9 unkowns.
+
+    Use the sympy package to solve system of equations.
+    """
+    # Need at least 3 lines to get all equations
+    assert len(lines) >= 3
+
+    first_three_hailstones = [(*x.point, *x.direction) for x in lines[:3]]
+    unknowns = sp.symbols("x y z vx vy vz t1 t2 t3")
+    x, y, z, vx, vy, vz, *time = unknowns
+
+    # build system of 9 equations with 9 unknowns
+    equations = []
+    for t, h in zip(time, first_three_hailstones):
+        equations.append(sp.Eq(x + t * vx, h[0] + t * h[3]))
+        equations.append(sp.Eq(y + t * vy, h[1] + t * h[4]))
+        equations.append(sp.Eq(z + t * vz, h[2] + t * h[5]))
+
+    line = sp.solve(equations, unknowns).pop()
+    return Line(
+        point=(line[0], line[1], line[2]), direction=(line[3], line[4], line[5])
+    )
+
+
 def compute(data: str, limits: Tuple[int, int]) -> Optional[int]:
-    """Compute result for puzzle input"""
+    """Compute result for part 1"""
     lines = [parse_line(x) for x in data.splitlines()]
 
     return find_intersects(lines, limits)
+
+
+def compute2(data: str) -> int:
+    """compute_result for part 1"""
+    lines = [parse_line(x) for x in data.splitlines()]
+
+    line = find_intersect_line(lines)
+
+    return sum(line.point)
 
 
 def main():
@@ -133,7 +180,9 @@ def main():
 
     limits = (200000000000000, 400000000000000)
     result = compute(data, limits)
+    result2 = compute2(data)
     print(f"{result=}")
+    print(f"{result2=}")
 
 
 if __name__ == "__main__":
